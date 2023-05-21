@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="a4d7b1e7-9dd3-4769-bf41-4dcd671deb58" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="omdb_config" doc:name="Database Config" doc:id="fcecfc96-a90c-4e93-b08f-e1fdd8cabb62" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="admin" database="omdb" />
+	</db:config>
+	<email:smtp-config name="Email_SMTP_OM" doc:name="Email SMTP" doc:id="a2faa9fa-f6c3-4e5b-9f35-bc48802846bb" >
+		<email:smtp-connection host="smtp.gmail.com" port="${secure::port}" user="gn60067@gmail.com" password="${secure::password}">
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<secure-properties:config name="OM_Secure" doc:name="Secure Properties Config" doc:id="8dd73ab5-ca72-4914-bd03-233d2bffafbe" file="mysecure.properties" key="1234" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<flow name="order-mgmt-api-implementationFlow-getAllOrder2" doc:id="3590c0d3-56b8-42a1-9a2e-d8092ca4fbe4" >
+		<http:listener doc:name="Get/order" doc:id="d23e5a34-47d2-401b-935f-1e2393c71494" config-ref="HTTP_Listener_config" path="/orders" />
+		<db:select doc:name="Select" doc:id="8b2616b2-40cc-4d6b-b28a-aee7ece23ef2" config-ref="omdb_config">
+			<db:sql ><![CDATA[select * from customer;]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="3da6e2df-16da-4213-b566-c47ca290773d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "Results":{
+        (payload map {
+            "Customer ID":$.id,
+            "Customer Name":$.name,
+            "email":$.email,
+            "Address": $.address
+            
+        })
+    }
+
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="27e1caf5-8b86-4898-aadf-ff9dfd305022" />
+		<email:send doc:name="Send" doc:id="378be432-f91a-4760-a0d8-c30c780af3ff" config-ref="Email_SMTP_OM" fromAddress="gn60067@gmail.com" subject="test ">
+
+			<reconnect-forever />
+			<email:to-addresses >
+				<email:to-address value="gn60067@gmail.com" />
+			</email:to-addresses>
+			<email:cc-addresses />
+		</email:send>
+	</flow>
+	<flow name="order-mgmt-api-implementationFlow-insertCstomer" doc:id="c1c38205-daa3-4e7f-9a76-a84f31da6468" >
+		<http:listener doc:name="Post/customer" doc:id="a4001eab-1f96-4a9b-848b-44005622c984" config-ref="HTTP_Listener_config" path="/customer" />
+		<try doc:name="Try" doc:id="3d6d5de6-5d06-4008-a44f-eff8e9fe3e93" >
+			<db:stored-procedure doc:name="Stored procedure" doc:id="77e29ea6-8218-40e6-9804-53ec975bed32" config-ref="omdb_config" >
+				<db:sql ><![CDATA[CALL newCustomer(:name, :email, :address,:returnValue)]]></db:sql>
+				<db:input-parameters ><![CDATA[#[{
+        name: payload.customer.name,
+        email: payload.customer.email,
+        address: payload.customer.address
+        }]]]></db:input-parameters>
+				<db:output-parameters >
+					<db:output-parameter key="returnValue" type="INTEGER" />
+				</db:output-parameters>
+			</db:stored-procedure>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="b9d6b58d-28ab-446c-9ccc-2550c50f4e9d" >
+					<ee:transform doc:name="Transform Message" doc:id="0da0b133-5ae3-4686-994b-e6bc2153b867" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+"error": {
+"type": "Data base error ",
+"message": error.detailedDescription
+}
+}
+]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<choice doc:name="EmailSelector" doc:id="39e21ae7-9aee-43b9-b850-ef1acfb51351" >
+			<when expression="#[payload.returnValue == 1]" >
+				<email:send doc:name="Send" doc:id="507a9ebd-1adf-4016-a296-744b64f47ce3" config-ref="Email_SMTP_OM" fromAddress="gn60067@gmail.com" subject="Customer Not added ">
+					<email:to-addresses >
+						<email:to-address value="gn60067@gmail.com" />
+					</email:to-addresses>
+					<email:reply-to-addresses />
+					<email:body >
+						<email:content ><![CDATA[meessage here]]></email:content>
+					</email:body>
+				</email:send>
+				<ee:transform doc:name="Transform Message" doc:id="90785bfa-5da5-40b4-bfec-ebbbd1bb6bbd" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message:"Customer Not  Added"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<email:send doc:name="Send" doc:id="c2acc76b-c841-4816-a049-5621b3d9df03" config-ref="Email_SMTP_OM" fromAddress="gn60067@gmail.com" subject="Customer Added" >
+					<email:to-addresses >
+						<email:to-address value="gnair60067@gmail.com" />
+					</email:to-addresses>
+					<email:body >
+						<email:content ><![CDATA["customer added "]]></email:content>
+					</email:body>
+				</email:send>
+				<ee:transform doc:name="Transform Message" doc:id="1e7b7c2c-f693-44c9-8ffe-d0e98b82d752" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message:"Customer  Added"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>

@@ -1,0 +1,8 @@
+{
+  "customer": {
+    "id": 123,
+    "name": "John Doe",
+    "email": "johndoe@example.com",
+    "address": "123 Main St, Anytown USA"
+  }
+}
