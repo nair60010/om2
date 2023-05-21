@@ -25,8 +25,8 @@ http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/sc
 	<secure-properties:config name="OM_Secure" doc:name="Secure Properties Config" doc:id="8dd73ab5-ca72-4914-bd03-233d2bffafbe" file="mysecure.properties" key="1234" >
 		<secure-properties:encrypt algorithm="Blowfish" />
 	</secure-properties:config>
-	<flow name="order-mgmt-api-implementationFlow-getAllOrder2" doc:id="3590c0d3-56b8-42a1-9a2e-d8092ca4fbe4" >
-		<http:listener doc:name="Get/order" doc:id="d23e5a34-47d2-401b-935f-1e2393c71494" config-ref="HTTP_Listener_config" path="/orders" />
+	<flow name="order-mgmt-api-implementationFlow-getAllCstomers" doc:id="3590c0d3-56b8-42a1-9a2e-d8092ca4fbe4" >
+		<http:listener doc:name="Get/order" doc:id="d23e5a34-47d2-401b-935f-1e2393c71494" config-ref="HTTP_Listener_config" path="/customer" />
 		<db:select doc:name="Select" doc:id="8b2616b2-40cc-4d6b-b28a-aee7ece23ef2" config-ref="omdb_config">
 			<db:sql ><![CDATA[select * from customer;]]></db:sql>
 		</db:select>
